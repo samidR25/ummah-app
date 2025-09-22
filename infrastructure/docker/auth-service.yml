@@ -1,0 +1,61 @@
+version: '3.8'
+services:
+  ummah-auth-service:
+    build:
+      context: ../../
+      dockerfile: backend/auth-service/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ummah_app_dev
+      - POSTGRES_USER=ummah_dev_user
+      - POSTGRES_PASSWORD=CHANGE_ME_IN_PRODUCTION
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=CHANGE_ME_IN_PRODUCTION
+      - JWT_SECRET=CHANGE_JWT_SECRET_IN_PRODUCTION
+      - API_PORT=8080
+      - API_HOST=0.0.0.0
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ummah-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=ummah_app_dev
+      - POSTGRES_USER=ummah_dev_user
+      - POSTGRES_PASSWORD=CHANGE_ME_IN_PRODUCTION
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ummah-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass CHANGE_ME_IN_PRODUCTION
+    volumes:
+      - redis_data:/data
+    networks:
+      - ummah-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ummah-network:
+    driver: bridge

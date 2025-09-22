@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:15
+    env_file:
+      - config/environments/.env.development
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ummah-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ummah_dev_user}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    env_file:
+      - config/environments/.env.development
+    command: redis-server --requirepass ${REDIS_PASSWORD:-CHANGE_ME_FALLBACK}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - ummah-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - ummah-dev-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+
+networks:
+  ummah-dev-network:
+    driver: bridge

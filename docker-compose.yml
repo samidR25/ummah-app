@@ -1,0 +1,122 @@
+version: '3.8'
+services:
+  # Database services
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ummah_app_dev
+      POSTGRES_USER: ummah_dev_user
+      POSTGRES_PASSWORD: CHANGE_ME_IN_PRODUCTION
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ummah-network
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass CHANGE_ME_IN_PRODUCTION
+    volumes:
+      - redis_data:/data
+    networks:
+      - ummah-network
+
+  # Backend services
+  auth-service:
+    build:
+      context: .
+      dockerfile: backend/auth-service/Dockerfile
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ummah_app_dev
+      - POSTGRES_USER=ummah_dev_user
+      - POSTGRES_PASSWORD=CHANGE_ME_IN_PRODUCTION
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=CHANGE_ME_IN_PRODUCTION
+      - JWT_SECRET=CHANGE_JWT_SECRET_IN_PRODUCTION
+      - API_PORT=8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - ummah-network
+    restart: unless-stopped
+
+  community-service:
+    build:
+      context: .
+      dockerfile: backend/community-service/Dockerfile
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ummah_app_dev
+      - POSTGRES_USER=ummah_dev_user
+      - POSTGRES_PASSWORD=CHANGE_ME_IN_PRODUCTION
+      - API_PORT=8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+    networks:
+      - ummah-network
+    restart: unless-stopped
+
+  messaging-service:
+    build:
+      context: .
+      dockerfile: backend/messaging-service/Dockerfile
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=ummah_app_dev
+      - POSTGRES_USER=ummah_dev_user
+      - POSTGRES_PASSWORD=CHANGE_ME_IN_PRODUCTION
+      - API_PORT=8082
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+    networks:
+      - ummah-network
+    restart: unless-stopped
+
+# Simple frontend (no React)
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend/public:/usr/share/nginx/html
+    depends_on:
+      - auth-service
+    networks:
+      - ummah-network
+
+  # Nginx reverse proxy for routing
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend
+      - auth-service
+      - community-service
+      - messaging-service
+    networks:
+      - ummah-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  ummah-network:
+    driver: bridge

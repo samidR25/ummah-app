@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ummah App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .container { max-width: 800px; margin: 0 auto; }
+        .auth-form { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .form-group { margin-bottom: 15px; }
+        input, button { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        .hidden { display: none; }
+        .header { background: #2c3e50; color: white; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+        .error { background: #e74c3c; color: white; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #27ae60; color: white; padding: 10px; margin: 10px 0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🕌 Ummah App - Islamic Social Platform</h1>
+            <div id="user-info" class="hidden">
+                <span>As-salamu alaikum, <span id="username"></span></span>
+                <button onclick="logout()" style="width: auto; margin-left: 10px;">Logout</button>
+            </div>
+        </div>
+        
+        <div id="login-form" class="auth-form">
+            <h2>Login</h2>
+            <div class="form-group">
+                <input type="email" id="email" placeholder="Email" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" placeholder="Password" required>
+            </div>
+            <button onclick="login()">Login</button>
+            <p><a href="#" onclick="showRegister()">Register here</a></p>
+        </div>
+        
+        <div id="register-form" class="auth-form hidden">
+            <h2>Register</h2>
+            <input type="text" id="reg-username" placeholder="Username" required>
+            <input type="email" id="reg-email" placeholder="Email" required>
+            <input type="password" id="reg-password" placeholder="Password (8+ chars, mixed case, number, special)" required>
+            <select id="reg-gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+            </select>
+            <button onclick="register()">Register</button>
+            <p><a href="#" onclick="showLogin()">Login here</a></p>
+        </div>
+        
+        <div id="dashboard" class="hidden">
+            <h2>Welcome to Ummah App!</h2>
+            <p>Your Islamic social platform is working! Alhamdulillah!</p>
+            <p>You can now:</p>
+            <ul>
+                <li>Update your profile settings</li>
+                <li>Browse Islamic communities (coming soon)</li>
+                <li>Send messages (coming soon)</li>
+            </ul>
+            <button onclick="showProfile()">Profile Settings</button>
+        </div>
+        
+        <div id="profile-section" class="hidden auth-form">
+            <h3>Profile Settings</h3>
+            <input type="text" id="profile-location" placeholder="Location">
+            <label>
+                <input type="checkbox" id="profile-prayer-reminders"> Prayer Reminders
+            </label>
+            <select id="profile-interaction">
+                <option value="same_gender_only">Same Gender Only</option>
+                <option value="all">All Members</option>
+                <option value="family_only">Family Only</option>
+            </select>
+            <button onclick="updateProfile()">Update Profile</button>
+            <button onclick="hideSections()">Back to Dashboard</button>
+        </div>
+        
+        <div id="messages"></div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        let currentUser = null;
+        let authToken = localStorage.getItem('token');
+        
+        if (authToken) {
+            verifyToken();
+        }
+        
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    authToken = data.data.token;
+                    currentUser = data.data.user;
+                    localStorage.setItem('token', authToken);
+                    showDashboard();
+                    showMessage('Login successful! As-salamu alaikum!', 'success');
+                } else {
+                    showMessage('Login failed: ' + data.error.message, 'error');
+                }
+            } catch (err) {
+                showMessage('Network error: ' + err.message, 'error');
+            }
+        }
+        
+        async function register() {
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const gender = document.getElementById('reg-gender').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password, gender })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    authToken = data.data.token;
+                    currentUser = data.data.user;
+                    localStorage.setItem('token', authToken);
+                    showDashboard();
+                    showMessage('Registration successful! Welcome to the Ummah!', 'success');
+                } else {
+                    showMessage('Registration failed: ' + data.error.message, 'error');
+                }
+            } catch (err) {
+                showMessage('Network error: ' + err.message, 'error');
+            }
+        }
+        
+        async function verifyToken() {
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/profile`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    currentUser = data.data.user;
+                    showDashboard();
+                } else {
+                    localStorage.removeItem('token');
+                    authToken = null;
+                }
+            } catch (err) {
+                localStorage.removeItem('token');
+                authToken = null;
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            authToken = null;
+            currentUser = null;
+            showLogin();
+            showMessage('Logged out successfully. Ma salama!', 'success');
+        }
+        
+        function showLogin() {
+            document.getElementById('login-form').classList.remove('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('profile-section').classList.add('hidden');
+            document.getElementById('user-info').classList.add('hidden');
+        }
+        
+        function showRegister() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+        }
+        
+        function showDashboard() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('profile-section').classList.add('hidden');
+            document.getElementById('user-info').classList.remove('hidden');
+            document.getElementById('username').textContent = currentUser.username;
+        }
+        
+        function showProfile() {
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('profile-section').classList.remove('hidden');
+            loadProfile();
+        }
+        
+        function hideSections() {
+            document.getElementById('profile-section').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+        }
+        
+        async function loadProfile() {
+            if (currentUser) {
+                document.getElementById('profile-location').value = currentUser.location || '';
+                document.getElementById('profile-prayer-reminders').checked = currentUser.prayer_reminders;
+                document.getElementById('profile-interaction').value = currentUser.gender_interaction_preference || 'same_gender_only';
+            }
+        }
+        
+        async function updateProfile() {
+            const location = document.getElementById('profile-location').value;
+            const prayerReminders = document.getElementById('profile-prayer-reminders').checked;
+            const interaction = document.getElementById('profile-interaction').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/profile`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        location,
+                        prayer_reminders: prayerReminders,
+                        gender_interaction_preference: interaction
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    currentUser = data.data.user;
+                    showMessage('Profile updated successfully!', 'success');
+                } else {
+                    showMessage('Failed to update profile: ' + data.error.message, 'error');
+                }
+            } catch (err) {
+                showMessage('Network error: ' + err.message, 'error');
+            }
+        }
+        
+        function showMessage(message, type) {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            container.appendChild(div);
+            
+            setTimeout(() => {
+                div.remove();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

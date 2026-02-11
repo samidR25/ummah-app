@@ -1,12 +1,12 @@
-# 🕌 Ummah App - Social Platform
+# Ummah App - Social Platform
 
 A secure focused social media platform connecting the Ummah!
 
-## 🎯 Vision
+## Vision
 
 Building meaningful connections within the global Ummah through a platform that prioritizes values, privacy, security, and authentic community engagement.
 
-## 🏗️ Architecture
+## Architecture
 
 ### Backend Services (C++)
 - **Auth Service** (Port 8080) - JWT authentication with compliance
@@ -18,8 +18,6 @@ Building meaningful connections within the global Ummah through a platform that 
 - **Cache**: Redis for session management
 - **Containerization**: Docker with Kubernetes support
 - **Frontend**: React-based web interface
-
-## 🚀 Quick Start
 
 ### Prerequisites
 - Docker and Docker Compose
@@ -54,7 +52,7 @@ docker-compose -f docker-compose.dev.yml up -d
 ./scripts/test-auth-service.sh
 ```
 
-## 🔐 Security
+## Security
 
 All sensitive data is managed via environment variables:
 
